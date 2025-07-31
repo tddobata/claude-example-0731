@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>案件管理システム</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <div id="loginContainer" class="container">
+            <div class="card">
+                <h2>ログイン</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="username">ユーザー名:</label>
+                        <input type="text" id="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">パスワード:</label>
+                        <input type="password" id="password" required>
+                    </div>
+                    <button type="submit">ログイン</button>
+                </form>
+                <p><a href="#" id="showRegister">新規ユーザー登録</a></p>
+            </div>
+        </div>
+
+        <div id="registerContainer" class="container" style="display: none;">
+            <div class="card">
+                <h2>ユーザー登録</h2>
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="regUsername">ユーザー名:</label>
+                        <input type="text" id="regUsername" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="regEmail">メールアドレス:</label>
+                        <input type="email" id="regEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="regPassword">パスワード:</label>
+                        <input type="password" id="regPassword" required>
+                    </div>
+                    <button type="submit">登録</button>
+                </form>
+                <p><a href="#" id="showLogin">ログインに戻る</a></p>
+            </div>
+        </div>
+
+        <div id="mainContainer" class="container" style="display: none;">
+            <header>
+                <h1>案件管理システム</h1>
+                <div class="user-info">
+                    <span id="currentUser"></span>
+                    <button id="logoutBtn">ログアウト</button>
+                </div>
+            </header>
+
+            <nav class="tabs">
+                <button class="tab-btn active" data-tab="projects">案件一覧</button>
+                <button class="tab-btn" data-tab="create-project">案件作成</button>
+                <button class="tab-btn" data-tab="reports">日報</button>
+            </nav>
+
+            <div id="projects" class="tab-content active">
+                <div class="section-header">
+                    <h2>案件一覧</h2>
+                    <button id="refreshProjects">更新</button>
+                </div>
+                <div id="projectsList"></div>
+            </div>
+
+            <div id="create-project" class="tab-content">
+                <div class="card">
+                    <h2>新規案件作成</h2>
+                    <form id="projectForm">
+                        <div class="form-group">
+                            <label for="projectName">案件名:</label>
+                            <input type="text" id="projectName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="projectDescription">案件概要:</label>
+                            <textarea id="projectDescription" rows="4"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="projectStatus">ステータス:</label>
+                            <select id="projectStatus">
+                                <option value="planning">企画中</option>
+                                <option value="in-progress">進行中</option>
+                                <option value="testing">テスト中</option>
+                                <option value="completed">完了</option>
+                                <option value="on-hold">保留</option>
+                            </select>
+                        </div>
+                        <button type="submit">作成</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="reports" class="tab-content">
+                <div class="section-header">
+                    <h2>日報管理</h2>
+                    <select id="projectSelect">
+                        <option value="">プロジェクトを選択</option>
+                    </select>
+                </div>
+                
+                <div id="reportForm" class="card" style="display: none;">
+                    <h3>日報投稿</h3>
+                    <form id="dailyReportForm">
+                        <div class="form-group">
+                            <label for="reportDate">日付:</label>
+                            <input type="date" id="reportDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="reportContent">作業内容:</label>
+                            <textarea id="reportContent" rows="6" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="progressPercentage">進捗率 (%):</label>
+                            <input type="number" id="progressPercentage" min="0" max="100" value="0">
+                        </div>
+                        <button type="submit">投稿</button>
+                    </form>
+                </div>
+
+                <div id="reportsList"></div>
+            </div>
+        </div>
+
+        <div id="projectModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2 id="modalProjectName"></h2>
+                <div id="modalProjectDetails"></div>
+                <form id="editProjectForm">
+                    <div class="form-group">
+                        <label for="editProjectName">案件名:</label>
+                        <input type="text" id="editProjectName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editProjectDescription">案件概要:</label>
+                        <textarea id="editProjectDescription" rows="4"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="editProjectStatus">ステータス:</label>
+                        <select id="editProjectStatus">
+                            <option value="planning">企画中</option>
+                            <option value="in-progress">進行中</option>
+                            <option value="testing">テスト中</option>
+                            <option value="completed">完了</option>
+                            <option value="on-hold">保留</option>
+                        </select>
+                    </div>
+                    <button type="submit">更新</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
