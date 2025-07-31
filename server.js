@@ -4,6 +4,8 @@ const bcrypt = require('bcryptjs');
 const session = require('express-session');
 const bodyParser = require('body-parser');
 const path = require('path');
+const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,11 +14,38 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Rate limiting for login attempts
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 requests per windowMs
+  message: {
+    error: 'ログイン試行回数が上限を超えました。15分後に再試行してください。'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Rate limiting for registration
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3, // limit each IP to 3 registration attempts per hour
+  message: {
+    error: 'ユーザー登録試行回数が上限を超えました。1時間後に再試行してください。'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.use(session({
-  secret: 'project-management-secret-key',
+  secret: process.env.SESSION_SECRET || crypto.randomBytes(64).toString('hex'),
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000,
+    sameSite: 'strict'
+  }
 }));
 
 const db = new sqlite3.Database('./database.db', (err) => {
@@ -89,8 +118,21 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', loginLimiter, (req, res) => {
   const { username, password } = req.body;
+  
+  // Input validation
+  if (!username || !password) {
+    return res.status(400).json({ error: 'ユーザー名とパスワードを入力してください' });
+  }
+  
+  if (typeof username !== 'string' || typeof password !== 'string') {
+    return res.status(400).json({ error: '無効な入力形式です' });
+  }
+  
+  if (username.length > 50 || password.length > 100) {
+    return res.status(400).json({ error: '入力値が長すぎます' });
+  }
   
   db.get("SELECT * FROM users WHERE username = ?", [username], (err, user) => {
     if (err) {
@@ -108,18 +150,62 @@ app.post('/api/login', (req, res) => {
 });
 
 app.post('/api/logout', (req, res) => {
-  req.session.destroy();
-  res.json({ success: true, message: 'ログアウトしました' });
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('セッション破棄エラー:', err);
+      return res.status(500).json({ error: 'ログアウトに失敗しました' });
+    }
+    res.json({ success: true, message: 'ログアウトしました' });
+  });
 });
 
-app.post('/api/register', (req, res) => {
+function validatePassword(password) {
+  if (!password || password.length < 8) {
+    return 'パスワードは8文字以上である必要があります';
+  }
+  if (!/(?=.*[a-z])/.test(password)) {
+    return 'パスワードには小文字を含める必要があります';
+  }
+  if (!/(?=.*[A-Z])/.test(password)) {
+    return 'パスワードには大文字を含める必要があります';
+  }
+  if (!/(?=.*\d)/.test(password)) {
+    return 'パスワードには数字を含める必要があります';
+  }
+  return null;
+}
+
+function validateInput(username, password, email) {
+  if (!username || username.length < 3) {
+    return 'ユーザー名は3文字以上である必要があります';
+  }
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+    return 'ユーザー名には英数字とアンダースコアのみ使用できます';
+  }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return '有効なメールアドレスを入力してください';
+  }
+  return validatePassword(password);
+}
+
+app.post('/api/register', registerLimiter, (req, res) => {
   const { username, password, email } = req.body;
+  
+  const validationError = validateInput(username, password, email);
+  if (validationError) {
+    return res.status(400).json({ error: validationError });
+  }
+  
   const hashedPassword = bcrypt.hashSync(password, 10);
   
   db.run("INSERT INTO users (username, password, email) VALUES (?, ?, ?)",
     [username, hashedPassword, email], function(err) {
       if (err) {
-        res.status(400).json({ error: 'ユーザー登録に失敗しました' });
+        if (err.message.includes('UNIQUE constraint failed')) {
+          res.status(400).json({ error: 'ユーザー名またはメールアドレスが既に使用されています' });
+        } else {
+          res.status(500).json({ error: 'ユーザー登録に失敗しました' });
+        }
       } else {
         res.json({ success: true, message: 'ユーザー登録が完了しました', userId: this.lastID });
       }
